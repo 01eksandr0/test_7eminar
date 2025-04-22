@@ -43,10 +43,13 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const router = useRouter()
+const { $logger } = useNuxtApp()
 
 async function handleLogin() {
     try {
         error.value = ''
+        $logger.info('Login attempt', { email: email.value })
+        
         await $fetch('/api/auth/login', {
             method: 'POST',
             body: {
@@ -55,10 +58,15 @@ async function handleLogin() {
             }
         })
 
+        $logger.trackUserAction('login_success', email.value)
         await router.push('/')
     } catch (e: any) {
-        error.value = e.data?.message || 'Произошла ошибка при входе'
-    } finally {
+        const errorMessage = e.data?.message || 'Произошла ошибка при входе'
+        error.value = errorMessage
+        $logger.error('Login failed', { 
+            email: email.value,
+            error: errorMessage
+        })
     }
 }
 </script>

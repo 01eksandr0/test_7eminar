@@ -6,13 +6,4 @@
 </template>
 <script setup>
 import MHeader from '~/components/m-header.vue'
-
-const { user, loading } = useAuth()
-const router = useRouter()
-
-onMounted(async () => {
-  if (!loading.value && !user.value) {
-    await router.push('/login')
-  }
-})
 </script>

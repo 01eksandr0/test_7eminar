@@ -12,6 +12,7 @@
 import type { IComment } from '~/types/comment'
 import { onMounted, onUnmounted, ref } from 'vue'
 import useCommentsStore from '~/stores/comments'
+import { useNuxtApp } from '#app'
 
 const props = defineProps<{
     comments: IComment[]
@@ -19,6 +20,7 @@ const props = defineProps<{
 }>()
 
 const commentsStore = useCommentsStore()
+const { $logger } = useNuxtApp()
 const socket = ref<WebSocket | null>(null)
 const reconnectAttempts = ref(0)
 const maxReconnectAttempts = 5
@@ -32,16 +34,16 @@ const setupWebSocket = () => {
         socket.value.close()
     }
 
-    // Use secure WebSocket (wss://) when the site is loaded over HTTPS
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/ws`
     
     try {
         socket.value = new WebSocket(wsUrl)
+        $logger.info('WebSocket connection attempt', { newsId: props.newsId })
 
         socket.value.onopen = () => {
             reconnectAttempts.value = 0
-            // If we were using polling, stop it
+            $logger.info('WebSocket connection established', { newsId: props.newsId })
             if (pollingInterval.value) {
                 clearInterval(pollingInterval.value)
                 pollingInterval.value = null
@@ -54,15 +56,24 @@ const setupWebSocket = () => {
                 const newComment = JSON.parse(event.data) as IComment
                 if (newComment.newsId === props.newsId) {
                     commentsStore.addComment(newComment)
+                    $logger.debug('New comment received', { 
+                        commentId: newComment.id,
+                        newsId: props.newsId 
+                    })
                 }
             } catch (error) {
-                console.error('Error parsing WebSocket message:', error)
+                $logger.error('Error parsing WebSocket message', { 
+                    error,
+                    newsId: props.newsId 
+                })
             }
         }
 
         socket.value.onerror = (error) => {
-            console.error('WebSocket error:', error)
-            // If WebSocket fails, switch to polling
+            $logger.error('WebSocket error occurred', { 
+                error,
+                newsId: props.newsId 
+            })
             if (!usePolling.value) {
                 startPolling()
             }
@@ -71,17 +82,25 @@ const setupWebSocket = () => {
         socket.value.onclose = () => {
             if (reconnectAttempts.value < maxReconnectAttempts) {
                 reconnectAttempts.value++
+                $logger.warn('WebSocket connection closed, attempting reconnect', { 
+                    attempt: reconnectAttempts.value,
+                    newsId: props.newsId 
+                })
                 setTimeout(() => {
                     setupWebSocket()
                 }, 5000)
             } else {
-                // If max reconnect attempts reached, switch to polling
+                $logger.error('Max WebSocket reconnect attempts reached', { 
+                    newsId: props.newsId 
+                })
                 startPolling()
             }
         }
     } catch (error) {
-        console.error('Error creating WebSocket connection:', error)
-        // If WebSocket creation fails, switch to polling
+        $logger.error('Error creating WebSocket connection', { 
+            error,
+            newsId: props.newsId 
+        })
         startPolling()
     }
 }
@@ -90,17 +109,14 @@ const startPolling = () => {
     if (usePolling.value) return
     
     usePolling.value = true
-    console.log('Switching to polling for comments updates')
+    $logger.info('Switching to polling for comments updates', { newsId: props.newsId })
     
-    // Clear any existing interval
     if (pollingInterval.value) {
         clearInterval(pollingInterval.value)
     }
     
-    // Initial fetch
     fetchComments()
     
-    // Set up polling interval (every 10 seconds)
     pollingInterval.value = window.setInterval(() => {
         fetchComments()
     }, 10000)
@@ -111,21 +127,29 @@ const fetchComments = async () => {
         const response = await fetch(`/api/comments?id=${props.newsId}`)
         if (response.ok) {
             const data = await response.json()
-            // Update comments in the store
             data.forEach((comment: IComment) => {
                 commentsStore.addComment(comment)
             })
+            $logger.debug('Comments fetched successfully', { 
+                count: data.length,
+                newsId: props.newsId 
+            })
         }
     } catch (error) {
-        console.error('Error fetching comments:', error)
+        $logger.error('Error fetching comments', { 
+            error,
+            newsId: props.newsId 
+        })
     }
 }
 
 onMounted(() => {
+    $logger.debug('Comments component mounted', { newsId: props.newsId })
     setupWebSocket()
 })
 
 onUnmounted(() => {
+    $logger.debug('Comments component unmounted', { newsId: props.newsId })
     if (socket.value) {
         socket.value.close()
     }
