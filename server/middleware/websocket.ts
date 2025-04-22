@@ -1,17 +1,22 @@
 import { WebSocketServer } from 'ws'
+import type { Server } from 'http'
 
 let wss: WebSocketServer | null = null
 
 export default defineEventHandler((event) => {
     if (!wss) {
-        const server = event.node.req.socket.server as any
+        // Cast to any first to access the server property, then cast to Server
+        const server = (event.node.req.socket as any).server as Server
         wss = new WebSocketServer({ 
             noServer: true,
             path: '/ws'
         })
 
         server.on('upgrade', (request: any, socket: any, head: any) => {
-            const pathname = new URL(request.url, 'http://localhost').pathname
+            // Get the pathname from the request URL, handling both HTTP and HTTPS
+            const url = new URL(request.url, `http${request.connection.encrypted ? 's' : ''}://${request.headers.host}`)
+            const pathname = url.pathname
+            
             if (pathname === '/ws') {
                 wss?.handleUpgrade(request, socket, head, (ws) => {
                     wss?.emit('connection', ws, request)

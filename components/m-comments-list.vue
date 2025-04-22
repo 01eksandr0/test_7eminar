@@ -30,7 +30,9 @@ const setupWebSocket = () => {
         socket.value.close()
     }
 
-    const wsUrl = `ws://${window.location.host}/ws`
+    // Use secure WebSocket (wss://) when the site is loaded over HTTPS
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/ws`
     
     try {
         socket.value = new WebSocket(wsUrl)
