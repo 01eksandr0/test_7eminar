@@ -1,25 +1,7 @@
 import { H3Event } from 'h3'
 import { getSessionCookie } from '../../utils/session'
 import { getSession } from '../../data/sessions'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-
-// Get the file path in a way that works in both development and production
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const commentsPath = join(__dirname, '../../data/comments.json')
-
-// Ensure the directory exists
-const dataDir = dirname(commentsPath)
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir, { recursive: true })
-}
-
-// Initialize comments file if it doesn't exist
-if (!existsSync(commentsPath)) {
-  writeFileSync(commentsPath, JSON.stringify([], null, 2))
-}
+import { addComment } from '../../utils/db'
 
 export default defineEventHandler(async (event: H3Event) => {
   const sessionId = getSessionCookie(event)
@@ -50,30 +32,12 @@ export default defineEventHandler(async (event: H3Event) => {
     })
   }
 
-  let comments = []
-  try {
-    comments = JSON.parse(readFileSync(commentsPath, 'utf-8'))
-  } catch (error) {
-    console.error('Error reading comments file:', error)
-    comments = []
-  }
-
   const newComment = {
-    id: comments.length + 1,
     newsId: Number(newsId),
     author: session.userId,
     text,
     date: new Date().toISOString()
   }
 
-  comments.push(newComment)
-  
-  try {
-    writeFileSync(commentsPath, JSON.stringify(comments, null, 2))
-  } catch (error) {
-    console.error('Error writing comments file:', error)
-    // Continue even if we can't write to the file
-  }
-
-  return newComment
+  return await addComment(newComment)
 }) 
