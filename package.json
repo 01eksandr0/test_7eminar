@@ -12,6 +12,8 @@
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.13.2",
     "@pinia/nuxt": "^0.11.0",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^5.1.1",
     "nuxt": "^3.16.2",
     "pinia": "^3.0.2",
     "socket.io": "^4.8.1",

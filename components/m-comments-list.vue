@@ -1,5 +1,25 @@
 <template>
     <div>
+        <div v-if="user" class="mb-6">
+            <form @submit.prevent="handleSubmit" class="space-y-4">
+                <div>
+                    <textarea
+                        v-model="newComment"
+                        class="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring focus:ring-2 focus:ring-blue-500"
+                        rows="3"
+                        placeholder="Напишіть ваш коментар..."
+                        required
+                    ></textarea>
+                </div>
+                <button
+                    type="submit"
+                    class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    :disabled="isSubmitting"
+                >
+                    {{ isSubmitting ? 'Відправка...' : 'Додати коментар' }}
+                </button>
+            </form>
+        </div>
         <ul class="flex flex-col gap-4">
             <li v-for="comment in comments" :key="comment.id">
                 <MCommentItem :comment="comment" />
@@ -13,12 +33,14 @@ import type { IComment } from '~/types/comment'
 import { onMounted, onUnmounted, ref } from 'vue'
 import useCommentsStore from '~/stores/comments'
 import { useNuxtApp } from '#app'
+import { useAuth } from '~/composables/useAuth'
 
 const props = defineProps<{
     comments: IComment[]
     newsId: number
 }>()
 
+const { user } = useAuth()
 const commentsStore = useCommentsStore()
 const { $logger } = useNuxtApp()
 const socket = ref<WebSocket | null>(null)
@@ -26,6 +48,8 @@ const reconnectAttempts = ref(0)
 const maxReconnectAttempts = 5
 const pollingInterval = ref<number | null>(null)
 const usePolling = ref(false)
+const newComment = ref('')
+const isSubmitting = ref(false)
 
 const setupWebSocket = () => {
     if (process.server) return
@@ -140,6 +164,35 @@ const fetchComments = async () => {
             error,
             newsId: props.newsId 
         })
+    }
+}
+
+async function handleSubmit() {
+    if (!newComment.value.trim()) return
+
+    try {
+        isSubmitting.value = true
+        const response = await $fetch('/api/comments', {
+            method: 'POST',
+            body: {
+                newsId: props.newsId,
+                text: newComment.value.trim()
+            }
+        })
+        
+        commentsStore.addComment(response)
+        newComment.value = ''
+        $logger.info('Comment added successfully', { 
+            newsId: props.newsId,
+            commentId: response.id
+        })
+    } catch (error) {
+        $logger.error('Error adding comment', { 
+            error,
+            newsId: props.newsId
+        })
+    } finally {
+        isSubmitting.value = false
     }
 }
 

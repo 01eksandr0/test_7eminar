@@ -1,19 +1,21 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { user, loading } = useAuth()
+  const { user, loading, checkAuth } = useAuth()
   const router = useRouter()
   
   if (loading.value) {
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await checkAuth()
   }
 
-  if (process.server) {
+  // Allow access to login page and public routes
+  if (to.path === '/login') {
+    if (user.value) {
+      return router.push('/')
+    }
     return
   }
 
-  if (!user.value && to.path !== '/login') {
+  // Protect routes that require authentication
+  if (!user.value) {
     return router.push('/login')
-  }
-  if (user.value && to.path === '/login') {
-    return router.push('/')
   }
 }) 

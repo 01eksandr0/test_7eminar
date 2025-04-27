@@ -23,9 +23,9 @@ export function createSession(userId: string): Session {
 export function setSessionCookie(event: H3Event, sessionId: string) {
   setCookie(event, SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, 
+    maxAge: 7 * 24 * 60 * 60,
     path: '/'
   })
 }
@@ -36,6 +36,8 @@ export function getSessionCookie(event: H3Event): string | undefined {
 
 export function removeSessionCookie(event: H3Event) {
   deleteCookie(event, SESSION_COOKIE_NAME, {
-    path: '/'
+    path: '/',
+    httpOnly: true,
+    secure: false
   })
 } 

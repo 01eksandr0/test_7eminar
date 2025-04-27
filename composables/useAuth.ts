@@ -1,14 +1,19 @@
+interface User {
+  id: string;
+  email: string;
+}
+
 export const useAuth = () => {
-  const user = ref<any>(null)
+  const user = useState<User | null>('auth:user', () => null)
   const loading = ref(true)
 
   async function checkAuth() {
     try {
       loading.value = true
-      const { data } = await useFetch('/api/auth/me', {
+      const { data } = await useFetch<User>('/api/auth/me', {
         key: 'auth-user',
-        server: true,
-        lazy: false
+        server: false,
+        lazy: true
       })
       user.value = data.value
     } catch (e) {
